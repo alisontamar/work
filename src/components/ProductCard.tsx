@@ -1,0 +1,57 @@
+import React from 'react';
+import { Edit, Trash2 } from 'lucide-react';
+import { Product } from '../types';
+
+interface ProductCardProps {
+  product: Product;
+  onEdit: (product: Product) => void;
+  onDelete: (id: string) => void;
+  exchangeRate: number;
+}
+
+export const ProductCard: React.FC<ProductCardProps> = ({ 
+  product, 
+  onEdit, 
+  onDelete,
+  exchangeRate 
+}) => {
+  const finalPrice = (product.price_usd * exchangeRate) + product.profit_bob;
+
+  return (
+    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-[1.02]">
+      <div className="relative h-48 overflow-hidden">
+        <img 
+          src={product.image_url}
+          alt={product.name} 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-sm">
+          Stock: {product.stock_quantity}
+        </div>
+      </div>
+      <div className="p-4">
+        <h3 className="text-lg font-semibold text-gray-800">{product.name}</h3>
+        <p className="text-sm text-gray-600 mt-1">Color: {product.color}</p>
+        <div className="mt-2">
+          <p className="text-xl font-bold text-blue-600">
+            Bs. {finalPrice.toFixed(2)}
+          </p>
+        </div>
+        <div className="mt-4 flex justify-end space-x-2">
+          <button
+            onClick={() => onEdit(product)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+          >
+            <Edit size={20} />
+          </button>
+          <button
+            onClick={() => onDelete(product.id)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
+          >
+            <Trash2 size={20} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
