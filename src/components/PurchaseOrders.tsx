@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Pencil, Trash2 } from "lucide-react";
-
+import { supabase } from "../lib/supabase";
 interface PurchaseOrder {
   id: string;
   supplier_id: string;
@@ -14,38 +14,118 @@ interface PurchaseOrder {
 
 interface PurchaseOrderItem {
   product_id: string;
+  product_name?: string; // Nuevo campo opcional
   quantity: number;
-  unit_price: number;
+  total_price: number;
 }
+
 
 export const PurchaseOrders: React.FC = () => {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const { register, handleSubmit, reset, watch } = useForm();
-
+  const { register, handleSubmit, reset, watch,} = useForm();
+  const [products, setProducts] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const quantity = watch("quantity");
-  const unit_price = watch("unit_price");
+  const total_price = watch("total_price");
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      // 1. Productos
+      const { data: productsData } = await supabase
+        .from("products")
+        .select("id, name");
 
-  const handleCreateOrder = (data: any) => {
-    const total = Number(data.quantity) * Number(data.unit_price);
-    const newOrder: PurchaseOrder = {
-      id: crypto.randomUUID(),
-      supplier_id: data.supplier_id,
-      order_date: new Date().toISOString(),
-      total_amount: total,
-      status: data.status,
-      items: [
-        {
-          product_id: data.product_id,
-          quantity: Number(data.quantity),
-          unit_price: Number(data.unit_price),
-        },
-      ],
+      // 2. Proveedores
+      const { data: suppliersData, error: suppliersError } = await supabase
+        .from("suppliers")
+        .select("id, first_name, last_name");
+
+      if (suppliersError) {
+        console.error("Error al obtener proveedores:", suppliersError.message);
+      } else {
+        console.log(suppliersData); // Verifica que se obtienen los datos correctos
+      }
+
+      if (productsData) setProducts(productsData);
+      if (suppliersData) setSuppliers(suppliersData);
+
+      // 3. Órdenes con productos dentro
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("purchase_orders")
+        .select(`
+          *,
+          purchase_order_items:purchase_order_items_order_id_fkey (
+            *,
+            product:products ( name )
+          )
+        `);
+
+      if (ordersError) {
+        console.error("Error al obtener órdenes:", ordersError.message);
+      } else {
+        const formattedOrders = ordersData.map((order: any) => ({
+          ...order,
+          items: order.purchase_order_items.map((item: any) => ({
+            product_id: item.product_id,
+            product_name: item.product?.name || "Desconocido",
+            quantity: item.quantity,
+            total_price: item.total_price,
+            suplier_id: item.suplier_id,
+          })),
+        }));
+
+        setOrders(formattedOrders);
+      }
     };
-    setOrders([newOrder, ...orders]);
+
+    fetchData();
+  }, []);
+
+
+  const handleCreateOrder = async (data: any) => {
+    const total = Number(data.quantity) * Number(data.total_price);
+
+    const { data: insertedOrder, error } = await supabase
+      .from("purchase_orders")
+      .insert([
+        {
+          supplier_id: data.supplier_id,
+          order_date: new Date().toISOString(),
+          total_amount: total,
+          status: data.status,
+          amount_arrived: data.amount_arrived,
+          price_unit: data.price_unit
+        },
+      ])
+      .select()
+      .single();
+
+    if (error || !insertedOrder) {
+      console.error("Error al guardar la orden:", error);
+      return;
+    }
+
+    const { error: itemError } = await supabase.from("purchase_order_items").insert([
+      {
+        order_id: insertedOrder.id,  // ✅ Usa la columna correcta
+        product_id: data.product_id,
+        quantity: Number(data.quantity),
+        total_price: Number(data.total_price),
+      },
+    ]);
+
+
+    if (itemError) {
+      console.error("Error al guardar ítem:", itemError);
+      return;
+    }
+
+    setOrders([insertedOrder, ...orders]);
     setShowForm(false);
     reset();
   };
+
 
   const handleEdit = (id: string) => {
     alert(`Editar orden: ${id}`);
@@ -77,16 +157,35 @@ export const PurchaseOrders: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
+                Proveedor
+              </label>
+              <select {...register("supplier_id", { required: true })} className="mt-1 w-full border rounded-md px-3 py-2">
+                    <option value="" disabled>Seleccione un proveedor</option>
+                      {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.first_name} {s.last_name}
+                    </option>
+                       ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
                 Producto
               </label>
               <select
-                {...register("status", { required: true })}
+                {...register("product_id", { required: true })}
                 className="mt-1 w-full border rounded-md px-3 py-2"
               >
-                <option>Seleccione un producto</option>
-
+                <option value="" disabled>Seleccione un producto</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </div>
+
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -108,7 +207,7 @@ export const PurchaseOrders: React.FC = () => {
                   type="number"
                   step="0.01"
                   min="0"
-                  {...register("unit_price", { required: true })}
+                  {...register("price_unit", { required: true })}
                   className="mt-1 w-full border rounded-md px-3 py-2"
                 />
               </div>
@@ -133,15 +232,15 @@ export const PurchaseOrders: React.FC = () => {
                 Total a Pagar
               </label>
               <input
-                type="text"
-                value={`$${
-                  quantity && unit_price
-                    ? (Number(quantity) * Number(unit_price)).toFixed(2)
-                    : "0.00"
-                }`}
-                readOnly
-                className="mt-1 w-full border rounded-md px-3 py-2 bg-gray-100"
-              />
+                   type="text"
+                      value={`$${quantity && total_price
+                        ? (Number(quantity) * Number(total_price)).toFixed(2)
+                            : "0.00"
+                         }`}
+                     readOnly
+                    className="mt-1 w-full border rounded-md px-3 py-2 bg-gray-100"
+                />
+
             </div>
 
             <div className="flex justify-end">
@@ -172,7 +271,10 @@ export const PurchaseOrders: React.FC = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                      ID
+                      PRODUCTO
+                    </th>
+                    <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
+                      CANTIDAD
                     </th>
                     <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
                       Fecha
@@ -191,44 +293,42 @@ export const PurchaseOrders: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50">
+                      {/* PRODUCTO */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {order.id}
+                        {order.items.map((item) => item.product_name).join(", ")}
                       </td>
+
+                      {/* CANTIDAD */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {order.items.reduce((acc, item) => acc + item.quantity, 0)}
+                      </td>
+
+                      {/* FECHA */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         {new Date(order.order_date).toLocaleDateString()}
                       </td>
+
+                      {/* ESTADO */}
                       <td className="px-6 py-4 whitespace-nowrap capitalize">
                         {order.status}
                       </td>
+
+                      {/* TOTAL */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        ${order.total_amount.toFixed(2)}
+                      {(order.total_amount ?? 0).toFixed(2)}
                       </td>
+
+                      {/* ACCIONES */}
                       <td className="px-6 py-4 whitespace-nowrap flex gap-2">
                         <button onClick={() => handleEdit(order.id)}>
-                          <Pencil
-                            size={18}
-                            className="text-blue-600 hover:text-blue-800"
-                          />
+                          <Pencil size={18} className="text-blue-600 hover:text-blue-800" />
                         </button>
                         <button onClick={() => handleDelete(order.id)}>
-                          <Trash2
-                            size={18}
-                            className="text-red-600 hover:text-red-800"
-                          />
+                          <Trash2 size={18} className="text-red-600 hover:text-red-800" />
                         </button>
                       </td>
                     </tr>
                   ))}
-                  {orders.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-6 py-4 text-center text-gray-500"
-                      >
-                        No hay órdenes de compra registradas
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
@@ -248,8 +348,16 @@ export const PurchaseOrders: React.FC = () => {
                 >
                   <div className="mb-2">
                     <h3 className="text-sm font-semibold text-gray-700 break-words">
-                      Orden: <span className="text-gray-900">{order.id}</span>
+                      Productos:
                     </h3>
+                    <ul className="text-sm text-gray-600">
+                      {order.items.map((item, index) => (
+                        <li key={index}>
+                          {item.product_name} - Cantidad: {item.quantity}
+                        </li>
+                      ))}
+
+                    </ul>
                     <p className="text-sm text-gray-600">
                       <strong>Fecha:</strong>{" "}
                       {new Date(order.order_date).toLocaleDateString()}
@@ -258,7 +366,7 @@ export const PurchaseOrders: React.FC = () => {
                       <strong>Estado:</strong> {order.status}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <strong>Total:</strong> ${order.total_amount.toFixed(2)}
+                      <strong>Total:</strong> {(order.total_amount ?? 0).toFixed(2)}
                     </p>
                     <div className="flex gap-4 mt-2">
                       <button onClick={() => handleEdit(order.id)}>
@@ -279,6 +387,7 @@ export const PurchaseOrders: React.FC = () => {
               ))
             )}
           </div>
+
         </>
       )}
     </div>

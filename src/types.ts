@@ -16,7 +16,7 @@ export interface Product {
   barcode: string;
   color: string;
   image_url: string;
-  price_usd: number;
+  cost_price: number;
   profit_bob: number;
   stock_quantity: number;
   store_id: string;
@@ -82,4 +82,5 @@ export interface Order {
   employee_id: string;
   quantity: number;
   product_id: string;
+  product_name: string;
 }

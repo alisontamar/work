@@ -33,6 +33,26 @@ function App() {
   const [exchangeRate, setExchangeRate] = useState(6.96);
 
   useEffect(() => {
+    const fetchData = async () => {
+      const { data: productsData, error: productsError } = await supabase.from('products').select('*');
+      if (productsError) {
+        console.error('Error fetching products:', productsError);
+      } else {
+        setProducts(productsData);
+      }
+  
+      const { data: storesData, error: storesError } = await supabase.from('stores').select('*');
+      if (storesError) {
+        console.error('Error fetching stores:', storesError);
+      } else {
+        setStores(storesData);
+      }
+    };
+  
+    fetchData();
+  }, []);
+  
+  useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setIsAuthenticated(!session);
@@ -48,23 +68,50 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
-  const handleProductSubmit = (data: Partial<Product>) => {
+  const handleProductSubmit = async (data: Partial<Product>) => {
     if (selectedProduct) {
-      setProducts(products.map(p => 
-        p.id === selectedProduct.id ? { ...p, ...data } : p
-      ));
+      // Update en Supabase
+      const { error } = await supabase
+        .from('products')
+        .update({
+          ...data,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedProduct.id);
+  
+      if (error) {
+        console.error('Error updating product:', error);
+        return;
+      }
     } else {
-      const newProduct = {
-        ...data,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as Product;
-      setProducts([...products, newProduct]);
+      // Insert en Supabase
+      const { error } = await supabase
+        .from('products')
+        .insert([{
+          ...data,
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }]);
+  
+      if (error) {
+        console.error('Error inserting product:', error);
+        return;
+      }
     }
+  
+    // Recargar productos después de guardar
+    const { data: productsData, error: productsError } = await supabase.from('products').select('*');
+    if (productsError) {
+      console.error('Error fetching products after save:', productsError);
+    } else {
+      setProducts(productsData);
+    }
+  
     setShowProductForm(false);
     setSelectedProduct(undefined);
   };
+  
 
   const handleStoreCreate = (data: Partial<Store>) => {
     const newStore = {

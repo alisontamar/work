@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect} from "react";
 import { useForm } from "react-hook-form";
 import Webcam from "react-webcam";
 import { Product, Store } from "../types";
+import { supabase } from "../lib/supabase";
 
 interface ProductFormProps {
   onSubmit: (data: Partial<Product>) => void;
@@ -18,8 +19,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [scanningField, setScanningField] = useState<
     "mei_code1" | "mei_code2" | "barcode" | null
   >(null);
-  const webcamRef = React.useRef<Webcam>(null);
+  const [storeList, setStoreList] = useState<Store[]>([]); // State para las tiendas
 
+  const webcamRef = React.useRef<Webcam>(null);
   const {
     register,
     handleSubmit,
@@ -28,6 +30,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   } = useForm({
     defaultValues: product || {},
   });
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("stores")
+          .select("*");
+
+        if (error) throw error;
+
+        setStoreList(data); // Guardamos las tiendas en el estado
+      } catch (error) {
+        console.error("Error fetching stores:", error);
+      }
+    };
+
+    fetchStores(); // Cargar las tiendas cuando el componente se monta
+  }, []);
 
   const handleScan = (field: "mei_code1" | "mei_code2" | "barcode") => {
     setScanningField(field);
@@ -46,8 +65,34 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
 
+  const handleProductSubmit = async (data: Partial<Product>) => {
+    try {
+      // Enviar datos a Supabase para crear o actualizar el producto
+      if (product) {
+        // Actualizar producto existente
+        const { error } = await supabase
+          .from("products")
+          .update(data)
+          .eq("id", product.id);
+
+        if (error) throw error;
+      } else {
+        // Crear nuevo producto
+        const { error } = await supabase
+          .from("products")
+          .insert([data]);
+
+        if (error) throw error;
+      }
+
+      onSubmit(data); // Llamar la función onSubmit del componente padre
+    } catch (error) {
+      console.error("Error al guardar el producto:", error);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleProductSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="md:col-span-2">
           <div className="flex items-center justify-between">
@@ -192,15 +237,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           <input
             type="number"
             step="0.01"
-            {...register("price_usd", {
+            {...register("cost_price", {
               required: "Este campo es requerido",
               min: { value: 0, message: "El precio debe ser mayor a 0" },
             })}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
-          {errors.price_usd && (
+          {errors.cost_price && (
             <p className="mt-1 text-sm text-red-600">
-              {errors.price_usd.message}
+              {errors.cost_price.message}
             </p>
           )}
         </div>
@@ -237,11 +282,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="">Seleccionar tienda</option>
-            {stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name}
-              </option>
-            ))}
+            {(storeList.length > 0 ? storeList : stores).map((store) => (
+  <option key={store.id} value={store.id}>
+    {store.name}
+  </option>
+))}
+
           </select>{" "}
           {errors.store_id && (
             <p className="mt-1 text-sm text-red-600">

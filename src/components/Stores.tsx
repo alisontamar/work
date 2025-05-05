@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Package } from "lucide-react";
 import { Store, Product } from "../types";
 import { StoreProducts } from "./StoreProducts";
+import { supabase } from "../lib/supabase";
 
 interface StoresProps {
   stores: Store[];
@@ -12,12 +13,9 @@ interface StoresProps {
   onProductAssign: (storeId: string, productId: string) => void;
 }
 
+
 export const Stores: React.FC<StoresProps> = ({
-  stores,
   products,
-  onStoreCreate,
-  onStoreUpdate,
-  onStoreDelete,
 
 }) => {
   const [showForm, setShowForm] = useState(false);
@@ -26,19 +24,61 @@ export const Stores: React.FC<StoresProps> = ({
   const [address, setAddress] = useState("");
   const [showAssignProduct, setShowAssignProduct] = useState(false);
   const [showProducts, setShowProducts] = useState<string | null>(null);
+  const [stores, setStores] = useState<Store[]>([]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+useEffect(() => {
+  fetchStores();
+}, []);
+
+const fetchStores = async () => {
+  const { data, error } = await supabase.from("stores").select("*");
+  if (error) {
+    console.error("Error fetching stores", error);
+  } else {
+    setStores(data);
+  }
+};
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  
     if (selectedStore) {
-      onStoreUpdate(selectedStore.id, { name, address });
+      // Actualizar tienda
+      const { error } = await supabase
+        .from("stores")
+        .update({ name, address })
+        .eq("id", selectedStore.id);
+  
+      if (error) {
+        console.error("Error actualizando tienda:", error.message);
+        return;
+      }
     } else {
-      onStoreCreate({ name, address });
+      // Crear tienda
+      const { error } = await supabase
+        .from("stores")
+        .insert({ name, address });
+  
+      if (error) {
+        console.error("Error creando tienda:", error.message);
+        return;
+      }
     }
+  
     setShowForm(false);
     setSelectedStore(null);
     setName("");
     setAddress("");
   };
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("stores").delete().eq("id", id);
+    if (error) {
+      console.error("Error al eliminar tienda:", error.message);
+      return;
+    }
+  };
+  
 
   const handleEdit = (store: Store) => {
     setSelectedStore(store);
@@ -188,7 +228,7 @@ export const Stores: React.FC<StoresProps> = ({
                           <Edit2 size={18} />
                         </button>
                         <button
-                          onClick={() => onStoreDelete(store.id)}
+                          onClick={() => handleDelete(store.id)}
                           className="text-red-600 hover:text-red-900"
                         >
                           <Trash2 size={18} />
@@ -237,7 +277,7 @@ export const Stores: React.FC<StoresProps> = ({
                     <Edit2 size={16} />
                   </button>
                   <button
-                    onClick={() => onStoreDelete(store.id)}
+                    onClick={() => handleDelete(store.id)}
                     className="text-red-600 hover:text-red-900 text-sm"
                   >
                     <Trash2 size={16} />

@@ -1,38 +1,92 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { Supplier } from '../types';
 import { SupplierForm } from './SupplierForm';
+import { supabase } from '../lib/supabase'; // Asegúrate de tener la configuración de Supabase
 
 export const Suppliers = () => {
   const [showForm, setShowForm] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | undefined>();
 
-  const handleSubmit = (data: Partial<Supplier>) => {
+  // Obtener los proveedores desde Supabase
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      const { data, error } = await supabase.from('suppliers').select('*');
+      if (data) {
+        setSuppliers(data);
+      } else {
+        console.error('Error fetching suppliers: ', error);
+      }
+    };
+
+    fetchSuppliers();
+  }, []);
+
+  // Función para manejar el formulario de proveedores (crear o editar)
+  const handleSubmit = async (data: Partial<Supplier>) => {
     if (selectedSupplier) {
-      setSuppliers(suppliers.map(sup => 
-        sup.id === selectedSupplier.id ? { ...sup, ...data } : sup
-      ));
+      // Editar proveedor
+      const { error } = await supabase
+        .from('suppliers')
+        .update({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          phone: data.phone,
+        })
+        .eq('id', selectedSupplier.id);
+
+      if (error) {
+        console.error('Error updating supplier:', error);
+      } else {
+        setSuppliers(
+          suppliers.map((sup) =>
+            sup.id === selectedSupplier.id ? { ...sup, ...data } : sup
+          )
+        );
+      }
     } else {
-      const newSupplier = {
-        ...data,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as Supplier;
-      setSuppliers([...suppliers, newSupplier]);
+      // Crear nuevo proveedor
+      const { data: newSupplier, error } = await supabase
+  .from('suppliers')
+  .insert([
+    {
+      ...data,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ])
+  .select()
+  .single();
+
+
+      if (error) {
+        console.error('Error inserting supplier:', error);
+      } else {
+        if (newSupplier) {
+          setSuppliers([...suppliers, newSupplier]);
+        }
+        
+      }
     }
     setShowForm(false);
     setSelectedSupplier(undefined);
   };
 
+  // Editar proveedor
   const handleEdit = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
-    setSuppliers(suppliers.filter(sup => sup.id !== id));
+  // Eliminar proveedor
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('suppliers').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting supplier:', error);
+    } else {
+      setSuppliers(suppliers.filter((sup) => sup.id !== id));
+    }
   };
 
   return (
@@ -123,35 +177,35 @@ export const Suppliers = () => {
               </tbody>
             </table>
           </div>
-          {/* Vista en tarjetas para móvil */}
-<div className="space-y-4 sm:hidden">
-  {suppliers.map((supplier) => (
-    <div key={supplier.id} className="bg-white rounded-lg shadow p-4">
-      <p className="text-sm font-semibold text-gray-800">
-        {supplier.first_name} {supplier.last_name}
-      </p>
-      <p className="text-sm text-gray-600">Teléfono: {supplier.phone}</p>
-      <div className="flex justify-end space-x-4 mt-3">
-        <button
-          onClick={() => handleEdit(supplier)}
-          className="text-blue-600 hover:text-blue-800"
-        >
-          <Edit2 size={18} />
-        </button>
-        <button
-          onClick={() => handleDelete(supplier.id)}
-          className="text-red-600 hover:text-red-800"
-        >
-          <Trash2 size={18} />
-        </button>
-      </div>
-    </div>
-  ))}
-  {suppliers.length === 0 && (
-    <div className="text-center text-gray-500">No hay proveedores registrados</div>
-  )}
-</div>
 
+          {/* Vista en tarjetas para móvil */}
+          <div className="space-y-4 sm:hidden">
+            {suppliers.map((supplier) => (
+              <div key={supplier.id} className="bg-white rounded-lg shadow p-4">
+                <p className="text-sm font-semibold text-gray-800">
+                  {supplier.first_name} {supplier.last_name}
+                </p>
+                <p className="text-sm text-gray-600">Teléfono: {supplier.phone}</p>
+                <div className="flex justify-end space-x-4 mt-3">
+                  <button
+                    onClick={() => handleEdit(supplier)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(supplier.id)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {suppliers.length === 0 && (
+              <div className="text-center text-gray-500">No hay proveedores registrados</div>
+            )}
+          </div>
         </>
       )}
     </div>

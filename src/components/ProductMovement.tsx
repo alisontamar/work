@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from 'react';
 import { Product, Store, Employee, ProductMovement } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface ProductMovementProps {
   products: Product[];
@@ -11,9 +11,7 @@ interface ProductMovementProps {
 
 export const ProductMovementComponent: React.FC<ProductMovementProps> = ({
   products,
-  stores,
   employees,
-  onSubmit
 }) => {
   const [movementType, setMovementType] = useState<'SALE' | 'TRANSFER' | 'STOCK_IN'>('SALE');
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -21,10 +19,25 @@ export const ProductMovementComponent: React.FC<ProductMovementProps> = ({
   const [fromStore, setFromStore] = useState('');
   const [toStore, setToStore] = useState('');
   const [employee, setEmployee] = useState('');
+  const [stores, setStores] = useState<Store[]>([]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+useEffect(() => {
+  const fetchStores = async () => {
+    const { data, error } = await supabase.from("stores").select("*");
+    if (error) {
+      console.error("Error al cargar tiendas:", error.message);
+    } else {
+      setStores(data);
+    }
+  };
+
+  fetchStores();
+}, []);
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+  
     const movement: Partial<ProductMovement> = {
       product_id: selectedProduct,
       quantity,
@@ -34,9 +47,13 @@ export const ProductMovementComponent: React.FC<ProductMovementProps> = ({
       to_store_id: movementType === 'SALE' ? null : toStore,
       created_at: new Date().toISOString(),
     };
-
-    onSubmit(movement);
-    
+  
+    const { error } = await supabase.from('product_movements').insert(movement);
+    if (error) {
+      console.error("Error al registrar el movimiento:", error.message);
+      return;
+    }
+  
     // Reset form
     setSelectedProduct('');
     setQuantity(1);
@@ -44,6 +61,7 @@ export const ProductMovementComponent: React.FC<ProductMovementProps> = ({
     setToStore('');
     setEmployee('');
   };
+  
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

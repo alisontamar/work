@@ -26,7 +26,7 @@ export const StoreProducts: React.FC<StoreProductsProps> = ({ store, products })
             <p className="text-sm text-gray-500">Color: {product.color}</p>
             <p className="text-sm text-gray-500">Stock: {product.stock_quantity}</p>
             <p className="mt-2 text-lg font-semibold text-blue-600">
-              Bs. {(product.price_usd * 6.96 + product.profit_bob).toFixed(2)}
+              Bs. {(product.cost_price * 6.96 + product.profit_bob).toFixed(2)}
             </p>
           </div>
         ))}

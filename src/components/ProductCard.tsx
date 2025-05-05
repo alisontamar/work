@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit, Trash2 } from 'lucide-react';
 import { Product } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface ProductCardProps {
   product: Product;
@@ -15,7 +16,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onDelete,
   exchangeRate 
 }) => {
-  const finalPrice = (product.price_usd * exchangeRate) + product.profit_bob;
+  const finalPrice = (product.cost_price * exchangeRate) + product.profit_bob;
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-[1.02]">
@@ -29,12 +30,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           Stock: {product.stock_quantity}
         </div>
       </div>
+      
       <div className="p-4">
         <h3 className="text-lg font-semibold text-gray-800">{product.name}</h3>
         <p className="text-sm text-gray-600 mt-1">Color: {product.color}</p>
         <div className="mt-2">
+          
           <p className="text-xl font-bold text-blue-600">
-            Bs. {finalPrice.toFixed(2)}
+            
+          <p>Precio final: {Number(finalPrice).toFixed(2)} Bs</p>
           </p>
         </div>
         <div className="mt-4 flex justify-end space-x-2">
