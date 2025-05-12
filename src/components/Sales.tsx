@@ -1,271 +1,230 @@
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import Webcam from 'react-webcam';
-import { supabase } from '../lib/supabase';
-import { Sale, Product, Store, Employee } from '../types';
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import toast, { Toaster } from "react-hot-toast";
+
+interface Product {
+  id_producto: number;
+  nombre_producto: string;
+  color_prodcuto: string;
+  precio_dolar: number;
+  granancia_boliviano: number;
+  stock_producto: number;
+  fecha_hora_creacion_producto: string;
+  imagen_producto: string;
+  codigo_MEI1: string;
+  codigo_MEI2: string;
+  id_empleado: number;
+}
+
+interface Sale {
+  fecha_hora_venta: string;
+  total_venta: number;
+}
+
+const products: Product[] = [
+  {
+    id_producto: 1,
+    nombre_producto: "Laptop Lenovo ThinkPad",
+    color_prodcuto: "Negro",
+    precio_dolar: 899.99,
+    granancia_boliviano: 500,
+    stock_producto: 10,
+    fecha_hora_creacion_producto: new Date().toISOString(),
+    imagen_producto: "https://images.pexels.com/photos/18105/pexels-photo.jpg",
+    codigo_MEI1: "MEI123456",
+    codigo_MEI2: "MEI789012",
+    id_empleado: 1,
+  },
+  {
+    id_producto: 2,
+    nombre_producto: "iPhone 13 Pro",
+    color_prodcuto: "Azul",
+    precio_dolar: 999.99,
+    granancia_boliviano: 700,
+    stock_producto: 15,
+    fecha_hora_creacion_producto: new Date().toISOString(),
+    imagen_producto:
+      "https://images.pexels.com/photos/404280/pexels-photo-404280.jpeg",
+    codigo_MEI1: "MEI345678",
+    codigo_MEI2: "MEI901234",
+    id_empleado: 1,
+  },
+  {
+    id_producto: 3,
+    nombre_producto: "Samsung Galaxy S21",
+    color_prodcuto: "Plata",
+    precio_dolar: 799.99,
+    granancia_boliviano: 450,
+    stock_producto: 20,
+    fecha_hora_creacion_producto: new Date().toISOString(),
+    imagen_producto:
+      "https://images.pexels.com/photos/47261/pexels-photo-47261.jpeg",
+    codigo_MEI1: "MEI567890",
+    codigo_MEI2: "MEI123456",
+    id_empleado: 1,
+  },
+];
 
 interface SalesProps {
-  products: Product[];
-  stores: Store[];
-  employees: Employee[]; // (aún se pasa, pero ya no se usa)
-  onSubmit?: (sale: Partial<Sale>) => void;
+  onSubmit: (sale: Partial<Sale>) => void;
   exchangeRate: number;
 }
 
-export const Sales: React.FC<SalesProps> = ({
-  products,
-  stores,
-  exchangeRate,
-}) => {
-  const [showScanner, setShowScanner] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState<
-    { id: string; name: string; price: number; quantity: number }[]
-  >([]);
-  const [employeeList, setEmployeeList] = useState<Employee[]>([]);
-  const webcamRef = React.useRef<Webcam>(null);
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm();
+export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+  const { handleSubmit } = useForm();
 
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      const { data, error } = await supabase.from('employees').select('*');
-      if (error) {
-        console.error('Error al cargar empleados:', error);
-      } else {
-        setEmployeeList(data);
-      }
-    };
-    fetchEmployees();
-  }, []);
+  const filteredProducts = searchTerm
+    ? products.filter(
+        (product) =>
+          product.codigo_MEI1
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          product.codigo_MEI2
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          product.nombre_producto
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
+      )
+    : [];
 
-  const handleScan = () => {
-    setShowScanner(true);
+  const handleProductSelect = (product: Product) => {
+    if (!selectedProducts.find((p) => p.id_producto === product.id_producto)) {
+      setSelectedProducts([...selectedProducts, product]);
+    }
+    setSearchTerm("");
   };
 
-  const handleCapture = () => {
-    if (webcamRef.current) {
-      const simulatedCode = Math.random().toString(36).substring(7).toUpperCase();
-      const product = products.find(
-        (p) => p.mei_code1 === simulatedCode || p.mei_code2 === simulatedCode
-      );
-      if (product) {
-        setValue('product_id', product.id);
-      } else {
-        alert('No se encontró un producto con el código escaneado.');
-      }
-      setShowScanner(false);
-    }
+  const removeProduct = (productId: number) => {
+    setSelectedProducts(
+      selectedProducts.filter((p) => p.id_producto !== productId)
+    );
   };
 
-  const addProduct = () => {
-    const productId = watch('product_id');
-    const quantity = watch('quantity');
-    const product = products.find((p) => p.id === productId);
-
-    if (product && quantity > 0) {
-      const existingProduct = selectedProducts.find((p) => p.id === product.id);
-      if (existingProduct) {
-        existingProduct.quantity += quantity;
-        setSelectedProducts([...selectedProducts]);
-      } else {
-        setSelectedProducts([
-          ...selectedProducts,
-          {
-            id: product.id,
-            name: product.name,
-            price: (product.cost_price ?? 0) * exchangeRate,
-            quantity,
-          },
-        ]);
-      }
-      setValue('quantity', 0);
-    } else {
-      alert('Seleccione un producto y una cantidad válida.');
-    }
+  const calculateTotal = () => {
+    return selectedProducts.reduce(
+      (total, product) =>
+        total +
+        (product.precio_dolar * exchangeRate + product.granancia_boliviano),
+      0
+    );
   };
 
-  const totalPrice = selectedProducts.reduce(
-    (total, product) => total + product.price * product.quantity,
-    0
-  );
-
-  const onFormSubmit = async (data: any) => {
-    const { employee_id } = data;
-
-    const { data: saleData, error: saleError } = await supabase
-      .from('sales')
-      .insert({
-        total_amount: totalPrice,
-        employee_id,
-      })
-      .select()
-      .single();
-
-    if (saleError || !saleData) {
-      alert('Error al registrar venta');
-      console.error(saleError);
-      return;
-    }
-
-    const saleItems = selectedProducts.map((product) => ({
-      sale_id: saleData.id,
-      product_id: product.id,
-      quantity: product.quantity,
-      total_price: product.price,
-      total_price: product.price * product.quantity,
-    }));
-
-    const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
-
-    if (itemsError) {
-      alert('Error al registrar los productos de la venta');
-      console.error(itemsError);
-      return;
-    }
-
-    alert('Venta registrada correctamente');
+  const handleSaleSubmit = () => {
+    const totalVenta = calculateTotal();
+    onSubmit({
+      fecha_hora_venta: new Date().toISOString(),
+      total_venta: totalVenta,
+    });
+    toast.success("¡Venta registrada exitosamente!", {
+      duration: 3000,
+      position: "top-right",
+    });
     setSelectedProducts([]);
   };
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-xl font-semibold mb-6">Nueva Venta</h2>
+      <Toaster />
+      <div className="space-y-6">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por código MEI o nombre del producto..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+          />
 
-      <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Empleado</label>
-            <select
-              {...register('employee_id', { required: 'Debe seleccionar un empleado' })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-            >
-              <option value="">Seleccionar empleado</option>
-              {employeeList.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.first_name} {emp.last_name}
-                </option>
+          {searchTerm && filteredProducts.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+              {filteredProducts.map((product) => (
+                <button
+                  key={product.id_producto}
+                  onClick={() => handleProductSelect(product)}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center space-x-4"
+                >
+                  <img
+                    src={product.imagen_producto}
+                    alt={product.nombre_producto}
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                  <div>
+                    <p className="font-medium">{product.nombre_producto}</p>
+                    <p className="text-sm text-gray-600">
+                      MEI: {product.codigo_MEI1} / {product.codigo_MEI2}
+                    </p>
+                  </div>
+                </button>
               ))}
-            </select>
-            {errors.employee_id && (
-              <p className="text-red-600 text-sm mt-1">
-                {errors.employee_id?.message?.toString()}
-              </p>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-700">
-                Producto (Código de Barras)
-              </label>
-              <button
-                type="button"
-                onClick={handleScan}
-                className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
-              >
-                Escanear Código
-              </button>
             </div>
-            <select {...register("product_id", { required: "Producto requerido" })}>
-  <option value="">Selecciona un producto</option>
-  {products.map(product => (
-    <option key={product.id} value={product.id}>
-      {product.name}
-    </option>
-  ))}
-</select>
-
-            {errors.product_id && (
-              <p className="text-red-600 text-sm mt-1">
-                {errors.product_id?.message?.toString()}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Cantidad</label>
-            <input
-              type="number"
-              min="1"
-              {...register('quantity', {
-                required: 'La cantidad es requerida',
-                min: { value: 1, message: 'La cantidad debe ser mayor a 0' },
-              })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-            />
-            {errors.quantity && (
-              <p className="text-red-600 text-sm mt-1">
-                {errors.quantity?.message?.toString()}
-              </p>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <button
-              type="button"
-              onClick={addProduct}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Agregar Producto
-            </button>
-          </div>
-
-          <div className="md:col-span-2">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Productos Seleccionados</h3>
-            <ul className="list-disc pl-5">
-              {selectedProducts.map((product, index) => (
-                <li key={index} className="flex justify-between">
-                  <span>
-                    {product.name} - Cantidad: {product.quantity} - Precio: Bs.{' '}
-                    {product.price.toFixed(2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-2">
-              <h4 className="font-semibold">Total a Pagar: Bs. {totalPrice.toFixed(2)}</h4>
-            </div>
-          </div>
+          )}
         </div>
 
-        {showScanner && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-4 rounded-lg">
-              <Webcam ref={webcamRef} screenshotFormat="image/jpeg" className="w-full max-w-md" />
-              <div className="mt-4 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={handleCapture}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        {selectedProducts.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-lg font-medium mb-4">
+              Productos Seleccionados
+            </h3>
+            <div className="space-y-4">
+              {selectedProducts.map((product) => (
+                <div
+                  key={product.id_producto}
+                  className="flex items-center justify-between bg-gray-50 p-4 rounded-lg"
                 >
-                  Capturar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowScanner(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                >
-                  Cancelar
-                </button>
+                  <div className="flex items-center space-x-4">
+                    <img
+                      src={product.imagen_producto}
+                      alt={product.nombre_producto}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                    <div>
+                      <h4 className="font-medium">{product.nombre_producto}</h4>
+                      <p className="text-sm text-gray-600">
+                        MEI: {product.codigo_MEI1}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Precio: Bs.{" "}
+                        {(
+                          product.precio_dolar * exchangeRate +
+                          product.granancia_boliviano
+                        ).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeProduct(product.id_producto)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-medium">Total a pagar:</span>
+                <span className="text-xl font-bold text-blue-600">
+                  Bs. {calculateTotal().toFixed(2)}
+                </span>
               </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={handleSaleSubmit}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Registrar Venta
+              </button>
             </div>
           </div>
         )}
-
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Registrar Venta
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   );
 };
