@@ -21,6 +21,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   >(null);
   const [storeList, setStoreList] = useState<Store[]>([]); // State para las tiendas
 
+const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const webcamRef = React.useRef<Webcam>(null);
   const {
     register,
@@ -65,31 +66,76 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
 
-  const handleProductSubmit = async (data: Partial<Product>) => {
-    try {
-      // Enviar datos a Supabase para crear o actualizar el producto
-      if (product) {
-        // Actualizar producto existente
-        const { error } = await supabase
-          .from("products")
-          .update(data)
-          .eq("id", product.id);
+const handleProductSubmit = async (data: Partial<Product>) => {
+  try {
+    let imageUrl = product?.image || null;
 
-        if (error) throw error;
-      } else {
-        // Crear nuevo producto
-        const { error } = await supabase
-          .from("products")
-          .insert([data]);
+    // 1. Subir imagen primero si existe
+    if (selectedImage) {
+      const fileExt = selectedImage.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `products/${fileName}`;
 
-        if (error) throw error;
+      // Subir la imagen con opciones explícitas
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, selectedImage, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: selectedImage.type
+        });
+
+      if (uploadError) {
+        console.error('Error subiendo imagen:', uploadError);
+        throw new Error(`Error al subir imagen: ${uploadError.message}`);
       }
 
-      onSubmit(data); // Llamar la función onSubmit del componente padre
-    } catch (error) {
-      console.error("Error al guardar el producto:", error);
+      // Obtener URL pública directamente (más eficiente)
+      const { data: publicUrlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      imageUrl = publicUrlData.publicUrl;
+      console.log('Imagen subida correctamente:', imageUrl);
     }
-  };
+
+    // 2. Preparar datos para la base de datos
+    const productData = {
+      ...data,
+      image: imageUrl,
+      created_at: product?.created_at || new Date().toISOString()
+    };
+
+    console.log('Datos a guardar:', productData);
+
+    // 3. Guardar en la base de datos
+    let dbOperation;
+    if (product) {
+      dbOperation = await supabase
+        .from('products')
+        .update(productData)
+        .eq('id', product.id)
+        .select();
+    } else {
+      dbOperation = await supabase
+        .from('products')
+        .insert([productData])
+        .select();
+    }
+
+    if (dbOperation.error) {
+      console.error('Error en operación DB:', dbOperation.error);
+      throw dbOperation.error;
+    }
+
+    console.log('Producto guardado:', dbOperation.data);
+    onSubmit(productData);
+    
+  } catch (error) {
+    console.error('Error completo:', error);
+    alert(`Error al guardar: ${error.message}`);
+  }
+};
 
   return (
     <form onSubmit={handleSubmit(handleProductSubmit)} className="space-y-6">
@@ -215,6 +261,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
           )}
         </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700">
+    Imagen del Producto
+  </label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => setSelectedImage(e.target.files?.[0] || null)}
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+  />
+</div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
@@ -229,6 +286,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <p className="mt-1 text-sm text-red-600">{errors.color.message}</p>
           )}
         </div>
+
+
 
         <div>
           <label className="block text-sm font-medium text-gray-700">

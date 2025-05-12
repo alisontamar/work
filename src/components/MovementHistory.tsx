@@ -7,7 +7,7 @@ interface MovementHistoryProps {
   products: Product[];
   stores: Store[];
   employees: Employee[];
-  selectedDate?: Date;
+  selectedDate?: Date; 
   selectedProduct?: string;
 }
 
