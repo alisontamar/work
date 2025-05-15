@@ -35,15 +35,20 @@ export const Dashboard: React.FC<DashboardProps> = () => {
   const [topProducts, setTopProducts] = useState<{ name: string; total: number }[]>([]);
   const [totalSales, setTotalSales] = useState<number>(0);
   const [totalUnits, setTotalUnits] = useState<number>(0);
+  const [monthLabels, setMonthLabels] = useState<string[]>([]);
+
 
   useEffect(() => {
     const fetchData = async () => {
       // Ventas mensuales (usa una función RPC si la tienes)
       const { data: ventasMes, error: errorVentas } = await supabase.rpc('ventas_por_mes');
       if (ventasMes) {
-        const values = ventasMes.map((row: any) => parseFloat(row.total));
-        setMonthlySales(values);
-      }
+  const values = ventasMes.map((row: any) => parseFloat(row.total));
+  const labels = ventasMes.map((row: any) => row.mes); // <- aquí usamos los nombres como 'Ene', 'Feb', etc.
+  setMonthlySales(values);
+  setMonthLabels(labels);
+}
+
 
       // Productos más vendidos
       const { data: productItems, error: errorProductos } = await supabase
@@ -83,17 +88,17 @@ export const Dashboard: React.FC<DashboardProps> = () => {
     fetchData();
   }, []);
 
-  const salesData = {
-    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
-    datasets: [
-      {
-        label: 'Ventas Mensuales',
-        data: monthlySales,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.5)',
-      },
-    ],
-  };
+const salesData = {
+  labels: monthLabels, // ← aquí cambiamos las etiquetas estáticas
+  datasets: [
+    {
+      label: 'Ventas Mensuales',
+      data: monthlySales,
+      borderColor: 'rgb(59, 130, 246)',
+      backgroundColor: 'rgba(59, 130, 246, 0.5)',
+    },
+  ],
+};
 
   const productData = {
     labels: topProducts.map((p) => p.name),

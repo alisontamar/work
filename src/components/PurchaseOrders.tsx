@@ -27,7 +27,8 @@ export const PurchaseOrders: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const quantity = watch("quantity");
-  const total_price = watch("total_price");
+const price_unit = watch("price_unit");
+
   
   useEffect(() => {
     const fetchData = async () => {
@@ -84,7 +85,7 @@ export const PurchaseOrders: React.FC = () => {
 
 
   const handleCreateOrder = async (data: any) => {
-    const total = Number(data.quantity) * Number(data.total_price);
+    const total = Number(data.quantity) * Number(data.price_unit);
 
     const { data: insertedOrder, error } = await supabase
       .from("purchase_orders")
@@ -111,7 +112,7 @@ export const PurchaseOrders: React.FC = () => {
         order_id: insertedOrder.id,  // ✅ Usa la columna correcta
         product_id: data.product_id,
         quantity: Number(data.quantity),
-        total_price: Number(data.total_price),
+        total_price: Number(data.quantity) * Number(data.price_unit),
       },
     ]);
 
@@ -232,14 +233,15 @@ export const PurchaseOrders: React.FC = () => {
                 Total a Pagar
               </label>
               <input
-                   type="text"
-                      value={`$${quantity && total_price
-                        ? (Number(quantity) * Number(total_price)).toFixed(2)
-                            : "0.00"
-                         }`}
-                     readOnly
-                    className="mt-1 w-full border rounded-md px-3 py-2 bg-gray-100"
-                />
+  type="text"
+  value={`$${quantity && price_unit
+    ? (Number(quantity) * Number(price_unit)).toFixed(2)
+    : "0.00"
+  }`}
+  readOnly
+  className="mt-1 w-full border rounded-md px-3 py-2 bg-gray-100"
+/>
+
 
             </div>
 
