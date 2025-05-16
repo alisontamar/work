@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { products as initialProducts } from './data/products';
 import { ProductCard } from './components/ProductCard';
@@ -29,7 +29,6 @@ function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [exchangeRate, setExchangeRate] = useState(6.96);
 
   useEffect(() => {
@@ -153,15 +152,6 @@ function App() {
     setSales([newSale, ...sales]);
   };
 
-  const handleTransferSubmit = (data: Partial<Transfer>) => {
-    const newTransfer = {
-      ...data,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-    } as Transfer;
-    setTransfers([newTransfer, ...transfers]);
-  };
-
   const handleEdit = (product: Product) => {
     setSelectedProduct(product);
     setShowProductForm(true);
@@ -182,9 +172,6 @@ function App() {
       case 'sales':
         return (
           <Sales
-            products={products}
-            stores={stores}
-            employees={employees}
             onSubmit={handleSaleSubmit}
             exchangeRate={exchangeRate}
           />
@@ -195,17 +182,11 @@ function App() {
             products={products}
             stores={stores}
             employees={employees}
-            onSubmit={handleTransferSubmit}
           />
         );
       case 'movements':
         return (
           <Movements
-            sales={sales}
-            transfers={transfers}
-            products={products}
-            stores={stores}
-            employees={employees}
           />
         );
       case 'stores':
