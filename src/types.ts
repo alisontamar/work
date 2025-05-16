@@ -20,6 +20,7 @@ export interface Product {
   profit_bob: number;
   stock_quantity: number;
   store_id: string;
+  price?: number;
   created_at: string;
   updated_at: string;
 }
@@ -52,7 +53,7 @@ export interface Sale {
 }
 
 export interface Transfer {
-  id: string;
+  id?: string;
   product_id: string;
   from_store_id: string;
   to_store_id: string;
