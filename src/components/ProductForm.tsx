@@ -287,6 +287,53 @@ const handleProductSubmit = async (data: Partial<Product>) => {
           )}
         </div>
 
+<div>
+  <label className="block text-sm font-medium text-gray-700">RAM (GB)</label>
+  <input
+    type="number"
+    {...register("ram", {
+      required: "Este campo es requerido",
+      min: { value: 0, message: "Debe ser mayor o igual a 0" },
+    })}
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+  />
+  {errors.ram && (
+    <p className="mt-1 text-sm text-red-600">{errors.ram.message}</p>
+  )}
+</div>
+
+<div>
+  <label className="block text-sm font-medium text-gray-700">ROM (GB)</label>
+  <input
+    type="number"
+    {...register("rom", {
+      required: "Este campo es requerido",
+      min: { value: 0, message: "Debe ser mayor o igual a 0" },
+    })}
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+  />
+  {errors.rom && (
+    <p className="mt-1 text-sm text-red-600">{errors.rom.message}</p>
+  )}
+</div>
+
+<div>
+  <label className="block text-sm font-medium text-gray-700">Procesador</label>
+  <input
+    type="text"
+    {...register("processor", {
+      required: "Este campo es requerido",
+      maxLength: {
+        value: 100,
+        message: "Máximo 100 caracteres",
+      },
+    })}
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+  />
+  {errors.processor && (
+    <p className="mt-1 text-sm text-red-600">{errors.processor.message}</p>
+  )}
+</div>
 
 
         <div>
@@ -331,6 +378,22 @@ const handleProductSubmit = async (data: Partial<Product>) => {
             </p>
           )}
         </div>
+          <div>
+  <label className="block text-sm font-medium text-gray-700">
+    Cantidad de producto
+  </label>
+  <input
+    type="number"
+    {...register("stock_quantity", {
+      required: "Este campo es requerido",
+      min: { value: 0, message: "El stock no puede ser negativo" },
+    })}
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+  />
+  {errors.stock_quantity && (
+    <p className="mt-1 text-sm text-red-600">{errors.stock_quantity.message}</p>
+  )}
+</div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700">

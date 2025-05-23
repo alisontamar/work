@@ -69,6 +69,7 @@ function App() {
   }
 
   const handleProductSubmit = async (data: Partial<Product>) => {
+    
     if (selectedProduct) {
       // Update en Supabase
       const { error } = await supabase
@@ -167,13 +168,39 @@ function App() {
     setShowProductForm(true);
   };
 
-  const handleDelete = (id: string) => {
-    setProducts(products.filter(p => p.id !== id));
-  };
+const handleDelete = async (id: string) => {
+  try {
+    // 1. Eliminar de Supabase
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    if (error) throw error;
+
+    // 2. Actualizar el estado local (IMPORTANTE)
+    setProducts(prevProducts => prevProducts.filter(p => p.id !== id));
+    
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    // Opcional: Mostrar mensaje de error al usuario
+  }
+};
+
+const filteredProducts = products.filter(product => {
+  const term = searchTerm.toLowerCase();
+  return (
+    product.name.toLowerCase().includes(term) ||
+   // product.mei_code1.toLowerCase().includes(term) ||
+   // product.mei_code2.toLowerCase().includes(term) ||
+    product.barcode.toLowerCase().includes(term) ||
+    product.color.toLowerCase().includes(term) ||
+    product.store_id.toLowerCase().includes(term) ||
+    product.cost_price.toString().includes(term) ||
+    product.profit_bob.toString().includes(term)
   );
+});
+
 
   const renderContent = () => {
     switch (currentPage) {
@@ -281,12 +308,7 @@ function App() {
                   </div>
                 )}
 
-                <button 
-                  onClick={() => setShowProductForm(true)}
-                  className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-                >
-                  <Plus size={24} />
-                </button>
+
               </>
             )}
           </>

@@ -22,6 +22,9 @@ export interface Product {
   store_id: string;
   created_at: string;
   updated_at: string;
+    ram?: number;
+  rom?: number;
+  processor?: string;
 }
 
 export interface Store {
