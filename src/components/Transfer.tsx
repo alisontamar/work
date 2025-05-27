@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import Webcam from "react-webcam";
 import { Store, Employee, Product } from "../types";
 import AlertDelete from "./ModalDelete";
 import { format } from "date-fns";
+import toast, { Toaster } from "react-hot-toast";
 interface TransferProps {
   products: Product[];
   stores: Store[];
@@ -15,40 +15,16 @@ export const TransferComponent: React.FC<TransferProps> = ({
   stores,
   employees,
 }) => {
-  const [showScanner, setShowScanner] = useState(false);
-  const webcamRef = React.useRef<Webcam>(null);
   const {
     register,
     handleSubmit,
-    setValue,
     watch,
     formState: { errors },
   } = useForm();
 
-  const handleScan = () => {
-    setShowScanner(true);
-  };
 
-  const handleCapture = () => {
-    if (webcamRef.current) {
-      // Here you would process the image to get the MEI code
-      // For now, we'll just simulate it with a random code
-      const simulatedCode = Math.random()
-        .toString(36)
-        .substring(7)
-        .toUpperCase();
-      const product = products.find(
-        (p) => p.mei_code1 === simulatedCode || p.mei_code2 === simulatedCode
-      );
-      if (product) {
-        setValue("product_id", product.id);
-      }
-      setShowScanner(false);
-    }
-  };
-
-  const fromStore = watch("from_store_id");
-  const toStore = watch("to_store_id");
+  const fromStore = watch("from_store");
+  const toStore = watch("to_store");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
 
@@ -71,6 +47,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
     }
     setSearchTerm("");
   };
+
   const [isOpen, setIsOpen] = useState(false);
   const [productIdDelete, setProductIdDelete] = useState<string>();
 
@@ -87,23 +64,38 @@ export const TransferComponent: React.FC<TransferProps> = ({
     setIsOpen(false);
     setSearchTerm("");
   };
-  const [transfers, setTransfers] = useState([]);
+  // TODO: Definir el tipo de transferencia
+  const [transfers, setTransfers] = useState<any[]>([]);
 
   const handleTransferSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newTransfer = {
       product_ids: selectedProducts.map((product) => product.id),
-      from_store_id: fromStore,
-      to_store_id: toStore,
+      from_store: fromStore,
+      to_store: toStore,
       created_at: new Date().toISOString(),
     };
+    // TODO: Falta obtener la sesión del empleado
     setTransfers([...transfers, newTransfer]);
     setSelectedProducts([]);
   };
-
+  const searchRef = useRef<HTMLInputElement>(null);
+  const handleScanner = () => {
+    if (searchRef.current) {
+      searchRef.current.focus();
+      toast.success("Puede escanear el código", {
+        duration: 3000,
+        position: "top-right",
+      })
+      //WARNING: Revisar el tiempo de espera
+      setTimeout(() => setSearchTerm(""), 5000);
+    }
+  }
   return (
     <>
+      <Toaster/>
       <section className="bg-white rounded-lg shadow p-6">
+        
         <h2 className="text-xl font-semibold mb-6">Nueva Transferencia</h2>
         <form onSubmit={handleTransferSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -111,6 +103,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <input
                   type="search"
+                  ref={searchRef}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar por código MEI o nombre del producto..."
@@ -118,7 +111,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
                 />
                 <button
                   type="button"
-                  onClick={handleScan}
+                  onClick={handleScanner}
                   className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
                 >
                   Escanear Código
@@ -189,7 +182,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
                 Desde Tienda
               </label>
               <select
-                {...register("from_store_id", {
+                {...register("from_store", {
                   required: "Debe seleccionar una tienda",
                 })}
                 className="mt-1 block w-full p-2 border cursor-pointer rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -198,7 +191,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
                   Seleccionar tienda
                 </option>
                 {stores.map((store) => (
-                  <option key={store.id} value={store.id}>
+                  <option key={store.id} value={store.name}>
                     {store.name}
                   </option>
                 ))}
@@ -210,7 +203,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
                 Hacia Tienda
               </label>
               <select
-                {...register("to_store_id", {
+                {...register("to_store", {
                   required: "Debe seleccionar una tienda",
                   validate: (value) =>
                     value !== fromStore || "Las tiendas deben ser diferentes",
@@ -221,42 +214,13 @@ export const TransferComponent: React.FC<TransferProps> = ({
                   Seleccionar tienda
                 </option>
                 {stores.map((store) => (
-                  <option key={store.id} value={store.id}>
+                  <option key={store.id} value={store.name}>
                     {store.name}
                   </option>
                 ))}
               </select>
             </div>
           </div>
-
-          {showScanner && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-4 rounded-lg">
-                <Webcam
-                  ref={webcamRef}
-                  screenshotFormat="image/jpeg"
-                  className="w-full max-w-md"
-                />
-                <div className="mt-4 flex justify-end space-x-2">
-                  <button
-                    type="button"
-                    onClick={handleCapture}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Capturar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowScanner(false)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="flex justify-end">
             <button
               type="submit"
@@ -308,7 +272,10 @@ export const TransferComponent: React.FC<TransferProps> = ({
                     </ul>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {transfer.from_store_id}
+                    {transfer.from_store}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transfer.to_store}
                   </td>
                 </tr>
               ))}
