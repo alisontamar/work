@@ -22,7 +22,6 @@ export const TransferComponent: React.FC<TransferProps> = ({
     formState: { errors },
   } = useForm();
 
-
   const fromStore = watch("from_store");
   const toStore = watch("to_store");
   const [searchTerm, setSearchTerm] = useState("");
@@ -69,12 +68,29 @@ export const TransferComponent: React.FC<TransferProps> = ({
 
   const handleTransferSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (fromStore === toStore) {
+      return toast.error("La tienda de transferencia no puede ser la misma", {
+        duration: 3000,
+        position: "top-right",
+      });
+    }
+
     const newTransfer = {
       product_ids: selectedProducts.map((product) => product.id),
       from_store: fromStore,
       to_store: toStore,
       created_at: new Date().toISOString(),
     };
+    if (
+      newTransfer.product_ids.length === 0 ||
+      !newTransfer.from_store ||
+      !newTransfer.to_store
+    ) {
+      return toast.error("Debe seleccionar al menos un producto", {
+        duration: 3000,
+        position: "top-right",
+      });
+    }
     // TODO: Falta obtener la sesión del empleado
     setTransfers([...transfers, newTransfer]);
     setSelectedProducts([]);
@@ -86,16 +102,15 @@ export const TransferComponent: React.FC<TransferProps> = ({
       toast.success("Puede escanear el código", {
         duration: 3000,
         position: "top-right",
-      })
+      });
       //WARNING: Revisar el tiempo de espera
       setTimeout(() => setSearchTerm(""), 5000);
     }
-  }
+  };
   return (
     <>
-      <Toaster/>
+      <Toaster />
       <section className="bg-white rounded-lg shadow p-6">
-        
         <h2 className="text-xl font-semibold mb-6">Nueva Transferencia</h2>
         <form onSubmit={handleTransferSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
