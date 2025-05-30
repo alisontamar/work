@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Search } from "lucide-react";
 import { Employee } from "../types";
 import { EmployeeForm } from "./EmployeeForm";
 import { supabase } from "../lib/supabase";
+import { elements } from "chart.js";
 
 export const Employees = () => {
   const [showForm, setShowForm] = useState<boolean>(false);
@@ -11,6 +12,12 @@ export const Employees = () => {
     Employee | undefined
   >();
   const [searchTerm, setSearchTerm] = useState("");
+  const patterns = {
+    phone: /^\+?\d{1,3}?[-.\s]?(\d{2,4}[-.\s]?){2,4}$/,
+    ci: /^[0-9]{8}$/,
+    password:
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#.,;:])[A-Za-z\d@$!%*?&#.,;:]{8,}$/,
+  };
 
   // Obtener empleados desde Supabase
   const fetchEmployees = async () => {
@@ -25,8 +32,37 @@ export const Employees = () => {
     fetchEmployees();
   }, []);
 
+  const validFields = (data:Partial<Employee>) => {
+    const { password, ci, phone } = data;
+    const {
+      password: strongPasswordPattern, 
+      ci: ciPattern,
+      phone: phonePattern,
+    } = patterns;
+    
+     const isStrongFields =
+        strongPasswordPattern.test(password || "") &&
+        password && password?.length >= 8 &&
+        ciPattern.test(String(ci) || "") &&
+        phonePattern.test(phone || "");
+      if (!isStrongFields) {
+        alert(
+          "Por favor, asegúrese de que los campos de contraseña, CI y teléfono cumplan con los requisitos."
+        );
+        return;
+      }
+      return isStrongFields;
+  }
+
   const handleSubmit = async (data: Partial<Employee>) => {
     if (selectedEmployee) {
+      const isStrongFields = validFields(data);
+      if (!isStrongFields) {
+        alert(
+          "Por favor, asegúrese de que los campos de contraseña, CI y teléfono cumplan con los requisitos."
+        );
+        return;
+      }
       // Actualizar
       const { error } = await supabase
         .from("employees")
@@ -38,6 +74,13 @@ export const Employees = () => {
         alert("Error al actualizar empleado");
       }
     } else {
+      const isStrongFields = validFields(data);
+      if (!isStrongFields) {
+        alert(
+          "Por favor, asegúrese de que los campos de contraseña, CI y teléfono cumplan con los requisitos."
+        );
+        return;
+      }
       // Insertar nuevo
       const { error } = await supabase.from("employees").insert([data]);
       if (error) {
@@ -62,17 +105,17 @@ export const Employees = () => {
       if (error) {
         console.error("❌ Error al eliminar empleado:", error.message);
         alert("Error al eliminar empleado");
-      } else {
-        await fetchEmployees();
+        return;
       }
+
+      await fetchEmployees();
     }
   };
 
-  const filteredEmployees = employees.filter(
-    (employee) =>
-      `${employee.first_name} ${employee.last_name}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) 
+  const filteredEmployees = employees.filter((employee) =>
+    `${employee.first_name} ${employee.last_name}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
   );
 
   return (
