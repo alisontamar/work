@@ -4,6 +4,8 @@ export interface Employee {
   last_name: string;
   position: string;
   phone: string;
+  ci: number;
+  password: string;
   created_at: string;
   updated_at: string;
 }

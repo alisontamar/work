@@ -1,6 +1,7 @@
-import React from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Employee } from "../types";
+import { Eye, EyeOff } from "lucide-react";
 
 interface EmployeeFormProps {
   onSubmit: (data: Partial<Employee>) => void;
@@ -18,6 +19,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
   } = useForm({
     defaultValues: employee || {},
   });
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   return (
     <form
@@ -32,7 +34,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           <input
             type="text"
             {...register("first_name", { required: "Este campo es requerido" })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block px-4 py-2 border border-gray-500 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Ingrese el nombre"
           />
           {errors.first_name && (
@@ -49,7 +51,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           <input
             type="text"
             {...register("last_name", { required: "Este campo es requerido" })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 block px-4 py-2 border border-gray-500 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Ingrese el apellido"
           />
           {errors.last_name && (
@@ -58,17 +60,67 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
             </p>
           )}
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Cédula de Identidad
+          </label>
+          <input
+            type="text"
+            {...register("ci", { required: "Este campo es requerido" })}
+            className="mt-1 block px-4 py-2 border border-gray-500 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+          {errors.ci && (
+            <p className="mt-1 text-sm text-red-600">{errors.ci.message}</p>
+          )}
+        </div>
 
         <div>
-          <label
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label className="block text-sm font-medium text-gray-700">
+            Contraseña
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              {...register("password", {
+                required: "Este campo es requerido",
+              })}
+              className="mt-1 block px-4 py-2 border border-gray-500 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Ingrese el nombre"
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-3"
+              >
+                {
+                  showPassword ? (
+                    <Eye
+                      className=" h-5 w-5 text-gray-400"
+                      onClick={() => setShowPassword(!showPassword)}
+                      />
+                  ): (
+                    <EyeOff
+                      className=" h-5 w-5 text-gray-400"
+                      onClick={() => setShowPassword(!showPassword)}
+                      />
+                  )
+                }
+            </button>
+          </div>
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.password.message}
+                  </p>
+                )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
             Cargo
           </label>
           <select
             id="position"
             name="position"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 px-4 py-2 border border-gray-500 cursor-pointer block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
           >
             <option value="" disabled selected>
@@ -92,7 +144,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                 message: "Ingrese un número de teléfono válido",
               },
             })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="mt-1 px-4 py-2 border border-gray-500 block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="+591 XXXXXXXX"
           />
           {errors.phone && (
@@ -100,8 +152,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           )}
         </div>
       </div>
-
-      <div className="flex justify-end">
+      <div className="flex justify-center">
         <button
           type="submit"
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
