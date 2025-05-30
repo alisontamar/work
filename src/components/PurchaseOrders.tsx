@@ -44,9 +44,7 @@ const price_unit = watch("price_unit");
 
       if (suppliersError) {
         console.error("Error al obtener proveedores:", suppliersError.message);
-      } else {
-        console.log(suppliersData); // Verifica que se obtienen los datos correctos
-      }
+      } 
 
       if (productsData) setProducts(productsData);
       if (suppliersData) setSuppliers(suppliersData);
