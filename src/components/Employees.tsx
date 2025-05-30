@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Search } from "lucide-react";
 import { Employee } from "../types";
 import { EmployeeForm } from "./EmployeeForm";
-import { supabase } from '../lib/supabase';
-
+import { supabase } from "../lib/supabase";
 
 export const Employees = () => {
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState<boolean>(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState<
+    Employee | undefined
+  >();
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Obtener empleados desde Supabase
   const fetchEmployees = async () => {
-    const { data, error } = await supabase.from('employees').select('*');
+    const { data, error } = await supabase.from("employees").select("*");
     if (error) {
-      console.error('❌ Error al obtener empleados:', error.message);
-    } else {
-      setEmployees(data || []);
+      console.error("❌ Error al obtener empleados:", error.message);
     }
+    setEmployees(data || []);
   };
 
   useEffect(() => {
@@ -29,20 +29,20 @@ export const Employees = () => {
     if (selectedEmployee) {
       // Actualizar
       const { error } = await supabase
-        .from('employees')
+        .from("employees")
         .update(data)
-        .eq('id', selectedEmployee.id);
+        .eq("id", selectedEmployee.id);
 
       if (error) {
-        console.error('❌ Error al actualizar empleado:', error.message);
-        alert('Error al actualizar empleado');
+        console.error("❌ Error al actualizar empleado:", error.message);
+        alert("Error al actualizar empleado");
       }
     } else {
       // Insertar nuevo
-      const { error } = await supabase.from('employees').insert([data]);
+      const { error } = await supabase.from("employees").insert([data]);
       if (error) {
-        console.error('❌ Error al crear empleado:', error.message);
-        alert('Error al crear empleado');
+        console.error("❌ Error al crear empleado:", error.message);
+        alert("Error al crear empleado");
       }
     }
 
@@ -57,22 +57,23 @@ export const Employees = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('¿Está seguro de eliminar este empleado?')) {
-      const { error } = await supabase.from('employees').delete().eq('id', id);
+    if (confirm("¿Está seguro de eliminar este empleado?")) {
+      const { error } = await supabase.from("employees").delete().eq("id", id);
       if (error) {
-        console.error('❌ Error al eliminar empleado:', error.message);
-        alert('Error al eliminar empleado');
+        console.error("❌ Error al eliminar empleado:", error.message);
+        alert("Error al eliminar empleado");
       } else {
         await fetchEmployees();
       }
     }
   };
 
-  const filteredEmployees = employees.filter(employee =>
-    `${employee.first_name} ${employee.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.position.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEmployees = employees.filter(
+    (employee) =>
+      `${employee.first_name} ${employee.last_name}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) 
   );
-
 
   return (
     <div className="space-y-6">
@@ -109,7 +110,7 @@ export const Employees = () => {
 
             <div className="w-full sm:w-96 relative">
               <input
-                type="text"
+                type="search"
                 placeholder="Buscar empleados..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
