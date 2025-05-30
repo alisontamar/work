@@ -33,6 +33,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </label>
           <input
             type="text"
+            autoCapitalize="words"
             {...register("first_name", { required: "Este campo es requerido" })}
             className="mt-1 block px-4 py-2 border border-gray-500 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Ingrese el nombre"
@@ -50,6 +51,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </label>
           <input
             type="text"
+            autoCapitalize="words"
             {...register("last_name", { required: "Este campo es requerido" })}
             className="mt-1 block px-4 py-2 border border-gray-500 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             placeholder="Ingrese el apellido"
@@ -66,6 +68,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </label>
           <input
             type="text"
+            autoComplete="off"
             {...register("ci", { required: "Este campo es requerido" })}
             className="mt-1 block px-4 py-2 border border-gray-500 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
@@ -80,6 +83,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </label>
           <div className="relative">
             <input
+              autoComplete="new-password"
               type={showPassword ? "text" : "password"}
               {...register("password", {
                 required: "Este campo es requerido",
@@ -87,30 +91,25 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               className="mt-1 block px-4 py-2 border border-gray-500 w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
               placeholder="Ingrese el nombre"
             />
-            <button
-              type="button"
-              className="absolute inset-y-0 right-3"
-              >
-                {
-                  showPassword ? (
-                    <Eye
-                      className=" h-5 w-5 text-gray-400"
-                      onClick={() => setShowPassword(!showPassword)}
-                      />
-                  ): (
-                    <EyeOff
-                      className=" h-5 w-5 text-gray-400"
-                      onClick={() => setShowPassword(!showPassword)}
-                      />
-                  )
-                }
+            <button type="button" className="absolute inset-y-0 right-3">
+              {showPassword ? (
+                <Eye
+                  className=" h-5 w-5 text-gray-400"
+                  onClick={() => setShowPassword(!showPassword)}
+                />
+              ) : (
+                <EyeOff
+                  className=" h-5 w-5 text-gray-400"
+                  onClick={() => setShowPassword(!showPassword)}
+                />
+              )}
             </button>
           </div>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.password.message}
-                  </p>
-                )}
+          {errors.password && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.password.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -119,11 +118,13 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </label>
           <select
             id="position"
-            name="position"
+            {...register("position", {
+              required: "Este campo es requerido",
+            })}
             className="mt-1 px-4 py-2 border border-gray-500 cursor-pointer block w-full rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
           >
-            <option value="" disabled selected>
+            <option value="" disabled>
               Seleccione un cargo
             </option>
             <option value="ventas">Ventas</option>
