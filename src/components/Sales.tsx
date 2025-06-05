@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import React, { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import AlertDelete from "./ModalDelete";
 import { format } from "date-fns";
@@ -17,6 +16,19 @@ interface Product {
   codigo_MEI1: string;
   codigo_MEI2: string;
   id_empleado: number;
+}
+
+interface SalesProps {
+  onSubmit: (sale: Partial<Sale>) => void;
+  exchangeRate: number;
+}
+
+interface VentaCompleta {
+  fecha_hora_venta: string;
+  total_venta: number;
+  descuento: number;
+  productos: Product[];
+  vendedor: string; // puedes dejarlo fijo por ahora
 }
 
 const products: Product[] = [
@@ -63,15 +75,9 @@ const products: Product[] = [
   },
 ];
 
-interface SalesProps {
-  onSubmit: (sale: Partial<Sale>) => void
-  exchangeRate: number;
-}
-
 export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
-  const { handleSubmit } = useForm();
 
   const filteredProducts = searchTerm
     ? products.filter(
@@ -91,7 +97,10 @@ export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
   const [totalSale, setTotalSale] = useState<number>(0); // total con descuento
   const [originalTotal, setOriginalTotal] = useState<number>(0); // total sin descuento
   const [discount, setDiscount] = useState<number>(0);
-
+  const [client, setClient] = useState<Record<string, string | number>>({
+    nombre_client: "",
+    celular_client: 0,
+  });
   const calculateTotal = (products: Product[]) => {
     const total = products.reduce(
       (total, product) =>
@@ -117,13 +126,7 @@ export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
       selectedProducts.filter((p) => p.id_producto !== productId)
     );
   };
-  interface VentaCompleta {
-    fecha_hora_venta: string;
-    total_venta: number;
-    descuento: number;
-    productos: Product[];
-    vendedor: string; // puedes dejarlo fijo por ahora
-  }
+
   const [productsSale, setProductsSale] = useState<VentaCompleta[]>([]);
   const handleSaleSubmit = () => {
     onSubmit({
@@ -135,6 +138,8 @@ export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
       total_venta: totalSale,
       descuento: discount,
       productos: selectedProducts,
+      nombre_client: client.nombre_client || "",
+      celular_client: client.celular_client || "",
       vendedor: "Empleado #1",
     };
     setProductsSale((prevProductsSale) => [...prevProductsSale, nuevaVenta]);
@@ -150,9 +155,12 @@ export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
 
   const [isOpen, setIsOpen] = useState(false);
   const [productIdDelete, setProductIdDelete] = useState<number>();
+  const searchRef = React.useRef<HTMLInputElement>(null);
+
   const handleDelete = (productID: number) => {
     setIsOpen(true);
     setProductIdDelete(productID);
+    calculateTotal
   };
   const handleDiscount = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = Number(e.target.value);
@@ -172,6 +180,38 @@ export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
     if (value > originalTotal) setTotalSale(originalTotal);
     else setTotalSale(originalTotal - value);
   };
+
+  const handleScanner = () => {
+    if (searchRef.current) {
+      searchRef.current.focus();
+      toast.success("Puede escanear el código", {
+        duration: 3000,
+        position: "top-right",
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (searchTerm !== "") {
+      const scannedProduct = products.find(
+        (product) =>
+          product.codigo_MEI1 === searchTerm ||
+          product.codigo_MEI2 === searchTerm
+      );
+      if (scannedProduct) {
+        const newProducts = [...selectedProducts, scannedProduct];
+        setSelectedProducts(newProducts);
+        calculateTotal(newProducts);
+        setSearchTerm("");
+      } else {
+        toast.error("Producto no encontrado", {
+          duration: 3000,
+          position: "top-right",
+        });
+      }
+    }
+  }, [searchTerm]);
+
   return (
     <>
       <section className="bg-white rounded-lg shadow p-6">
@@ -179,14 +219,23 @@ export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
         <Toaster />
         <div className="space-y-6">
           <div className="relative">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por código MEI o nombre del producto..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-            />
-
+            <div className="flex items-center space-x-2 mb-4">
+              <input
+                type="search"
+                value={searchTerm}
+                ref={searchRef}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por código MEI o nombre del producto..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={handleScanner}
+                className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+              >
+                Escanear Código
+              </button>
+            </div>
             {searchTerm && filteredProducts.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
                 {filteredProducts.map((product) => (
@@ -211,7 +260,26 @@ export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
               </div>
             )}
           </div>
-
+          <div className="flex items-center space-x-2 mb-4">
+            <input
+              type="text"
+              value={client.nombre_client}
+              onChange={(e) =>
+                setClient({ ...client, nombre_client: e.target.value })
+              }
+              placeholder="Nombre del cliente (opcional)"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+            <input
+              type="tel"
+              value={client.celular_client !== 0 ? client.celular_client : ""}
+              onChange={(e) =>
+                setClient({ ...client, celular_client: e.target.value })
+              }
+              placeholder="Celular del cliente (opcional)"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
           {selectedProducts.length > 0 && (
             <div className="mt-6">
               <h3 className="text-lg font-medium mb-4">
@@ -288,7 +356,7 @@ export const Sales: React.FC<SalesProps> = ({ onSubmit, exchangeRate }) => {
           )}
         </div>
       </section>
-      <section className="bg-white rounded-lg shadow overflow-hidden hidden sm:block my-8 p-6">
+      <section className="bg-white rounded-lg shadow overflow-hidden sm:block my-8 p-6">
         <h2 className="text-xl font-semibold mb-6">Historial de Ventas</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
