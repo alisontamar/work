@@ -1,9 +1,17 @@
-import React, { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import React, { useEffect, useRef, useState } from "react";
+import { get, useForm } from "react-hook-form";
 import { Store, Employee, Product } from "../types";
 import AlertDelete from "./ModalDelete";
-import { format } from "date-fns";
+import { format, set } from "date-fns";
 import toast, { Toaster } from "react-hot-toast";
+import { supabase } from "../lib/supabase";
+import {
+  ArrowLeftCircleIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  PlusIcon,
+} from "lucide-react";
+
 interface TransferProps {
   products: Product[];
   stores: Store[];
@@ -22,11 +30,23 @@ export const TransferComponent: React.FC<TransferProps> = ({
     formState: { errors },
   } = useForm();
 
-  const fromStore = watch("from_store");
-  const toStore = watch("to_store");
+  const fromStore = watch("from_store_id");
+  const toStore = watch("to_store_id");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+  interface Product {
+    product_id: string;
+    product_name: string;
+  }
 
+  interface Transfer {
+    transfer_id: string;
+    transfer_date: string; // ISO 8601 format
+    store_origin: string;
+    store_destiny: string;
+    employee_name: string;
+    products: Product[];
+  }
   const filteredProducts = searchTerm
     ? products.filter((product) => {
         const code1 = String(product.mei_code1).toLowerCase();
@@ -64,9 +84,9 @@ export const TransferComponent: React.FC<TransferProps> = ({
     setSearchTerm("");
   };
   // TODO: Definir el tipo de transferencia
-  const [transfers, setTransfers] = useState<any[]>([]);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
 
-  const handleTransferSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleTransferSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (fromStore === toStore) {
       return toast.error("La tienda de transferencia no puede ser la misma", {
@@ -74,12 +94,10 @@ export const TransferComponent: React.FC<TransferProps> = ({
         position: "top-right",
       });
     }
-
     const newTransfer = {
       product_ids: selectedProducts.map((product) => product.id),
       from_store: fromStore,
       to_store: toStore,
-      created_at: new Date().toISOString(),
     };
     if (
       newTransfer.product_ids.length === 0 ||
@@ -92,8 +110,24 @@ export const TransferComponent: React.FC<TransferProps> = ({
       });
     }
     // TODO: Falta obtener la sesión del empleado
-    setTransfers([...transfers, newTransfer]);
     setSelectedProducts([]);
+    const { data, error } = await supabase.rpc("insert_transfer", {
+      e_id: "5fa3487c-e2f6-4730-8b49-6d81e10b8f28",
+      s_o_id: newTransfer.from_store,
+      s_d_id: newTransfer.to_store,
+      p_ids: newTransfer.product_ids,
+    });
+    if (error) {
+      console.error("Error al registrar la transferencia:", error.message);
+      return toast.error("Error al registrar la transferencia", {
+        duration: 3000,
+        position: "top-right",
+      });
+    }
+    return toast.success(data, {
+      duration: 3000,
+      position: "top-right",
+    });
   };
   const searchRef = useRef<HTMLInputElement>(null);
   const handleScanner = () => {
@@ -107,6 +141,36 @@ export const TransferComponent: React.FC<TransferProps> = ({
       setTimeout(() => setSearchTerm(""), 5000);
     }
   };
+  const [offset, setOffset] = useState(0);
+  const [limitItems, _] = useState(5);
+  const [hasMore, setHasMore] = useState(true);
+
+  const get_transfers_paginated = async (limit: number, offset: number = 0) => {
+    const { data: transfersData, error } = await supabase.rpc(
+      "select_transfer_paginated",
+      {
+        limit_count: limit,
+        offset_count: offset,
+      }
+    );
+    if (error) {
+      return toast.error("Error al obtener las transferencias", {
+        duration: 3000,
+        position: "top-right",
+      });
+    }
+    return transfersData;
+  };
+
+  useEffect(() => {
+    get_transfers_paginated(limitItems, offset).then((data: Transfer[]) => {
+      if (data) {
+        setTransfers(data);
+        setHasMore(data?.length === limitItems);
+      }
+    });
+  }, [offset]);
+
   return (
     <>
       <Toaster />
@@ -197,7 +261,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
                 Desde Tienda
               </label>
               <select
-                {...register("from_store", {
+                {...register("from_store_id", {
                   required: "Debe seleccionar una tienda",
                 })}
                 className="mt-1 block w-full p-2 border cursor-pointer rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -206,7 +270,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
                   Seleccionar tienda
                 </option>
                 {stores.map((store) => (
-                  <option key={store.id} value={store.name}>
+                  <option key={store.id} value={store.id}>
                     {store.name}
                   </option>
                 ))}
@@ -218,7 +282,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
                 Hacia Tienda
               </label>
               <select
-                {...register("to_store", {
+                {...register("to_store_id", {
                   required: "Debe seleccionar una tienda",
                   validate: (value) =>
                     value !== fromStore || "Las tiendas deben ser diferentes",
@@ -229,7 +293,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
                   Seleccionar tienda
                 </option>
                 {stores.map((store) => (
-                  <option key={store.id} value={store.name}>
+                  <option key={store.id} value={store.id}>
                     {store.name}
                   </option>
                 ))}
@@ -239,7 +303,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
           <div className="flex justify-end">
             <button
               type="submit"
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="bg-blue-600 cursor-pointer text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Registrar Transferencia
             </button>
@@ -247,9 +311,39 @@ export const TransferComponent: React.FC<TransferProps> = ({
         </form>
       </section>
       <section className="bg-white rounded-lg shadow overflow-hidden hidden sm:block my-8 p-6">
-        <h2 className="text-xl font-semibold mb-6">
-          Historial de Transferencias
-        </h2>
+        <header className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold">Historial de Transferencias</h2>
+          <div>
+            <span>Mostrando {transfers?.length} transferencias</span>
+            <div className="flex items-center gap-4 justify-center mt-4">
+              <button
+                disabled={offset === 0}
+                onClick={() => setOffset(offset - limitItems)}
+                className={`p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors ${
+                  offset === 0
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
+                }`}
+              >
+                <ArrowLeftIcon size={20} />
+              </button>
+              <button
+                disabled={!hasMore}
+                onClick={() => setOffset(offset + limitItems)}
+                className={`
+                  p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors
+                  ${
+                    !hasMore
+                      ? "opacity-50 cursor-not-allowed"
+                      : "cursor-pointer"
+                  }
+                  `}
+              >
+                <ArrowRightIcon size={20} />
+              </button>
+            </div>
+          </div>
+        </header>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -272,25 +366,26 @@ export const TransferComponent: React.FC<TransferProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transfers.map((transfer, index) => (
-                <tr key={index}>
+              {transfers?.map((transfer) => (
+                <tr key={transfer.transfer_id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {format(new Date(transfer.created_at), "dd/MM/yyyy HH:mm")}
+                    {transfer.transfer_date.substring(0, 10)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <ul className="list-disc pl-4">
-                      {transfer.product_ids.map((p) => (
-                        <li key={p}>
-                          {products.find((product) => product.id === p)?.name}
-                        </li>
+                      {transfer.products.map((p) => (
+                        <li key={p.product_id}>{p.product_name}</li>
                       ))}
                     </ul>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {transfer.from_store}
+                    {transfer.store_origin}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {transfer.to_store}
+                    {transfer.store_destiny}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {transfer.employee_name}
                   </td>
                 </tr>
               ))}
