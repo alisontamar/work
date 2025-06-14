@@ -3,6 +3,7 @@ import toast, { Toaster } from "react-hot-toast";
 import AlertDelete from "./ModalDelete";
 import { supabase } from "../lib/supabase";
 import { format } from "date-fns";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 
 interface Product {
   id_producto: string;
@@ -184,6 +185,10 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
     }
   }, [searchTerm]);
 
+  const [offset, setOffset] = useState(0);
+  const [limitItems, _] = useState(5);
+  const [hasMore, setHasMore] = useState(true);
+
   useEffect(() => {
     const get_sales_paginated = async (limit: number, offset: number = 0) => {
       const { data: infoSales, error } = await supabase.rpc(
@@ -195,7 +200,6 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
       );
 
       if (error) {
-        console.log(error.message)
         return toast.error("Error al obtener las ventas", {
           duration: 3000,
           position: "top-right",
@@ -205,12 +209,13 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
       return infoSales;
     };
 
-    get_sales_paginated(10, 0).then((data) => {
-      if(data) {
+    get_sales_paginated(limitItems, offset).then((data) => {
+      if (data) {
         setProductsSale(data);
+        setHasMore(data?.length === limitItems);
       }
     });
-  }, []);
+  }, [offset]);
 
   return (
     <>
@@ -329,7 +334,39 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
         </div>
       </section>
       <section className="bg-white rounded-lg shadow overflow-hidden sm:block my-8 p-6">
-        <h2 className="text-xl font-semibold mb-6">Historial de Ventas</h2>
+        <header className="flex justify-between items-center mb-6 ">
+          <h2 className="text-xl font-semibold">Historial de Ventas</h2>
+          <div>
+            <span>Mostrando {productsSale?.length} transferencias</span>
+            <div className="flex items-center gap-4 justify-center mt-4">
+              <button
+                disabled={offset === 0}
+                onClick={() => setOffset(offset - limitItems)}
+                className={`p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors ${
+                  offset === 0
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
+                }`}
+              >
+                <ArrowLeftIcon size={20} />
+              </button>
+              <button
+                disabled={!hasMore}
+                onClick={() => setOffset(offset + limitItems)}
+                className={`
+                          p-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors
+                          ${
+                            !hasMore
+                              ? "opacity-50 cursor-not-allowed"
+                              : "cursor-pointer"
+                          }
+                          `}
+              >
+                <ArrowRightIcon size={20} />
+              </button>
+            </div>
+          </div>
+        </header>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
