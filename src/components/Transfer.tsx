@@ -1,16 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { get, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Store, Employee, Product } from "../types";
 import AlertDelete from "./ModalDelete";
-import { format, set } from "date-fns";
 import toast, { Toaster } from "react-hot-toast";
 import { supabase } from "../lib/supabase";
-import {
-  ArrowLeftCircleIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  PlusIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { format } from "date-fns";
 
 interface TransferProps {
   products: Product[];
@@ -23,12 +18,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
   stores,
   employees,
 }) => {
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm();
+  const { register, watch } = useForm();
 
   const fromStore = watch("from_store_id");
   const toStore = watch("to_store_id");
@@ -83,7 +73,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
     setIsOpen(false);
     setSearchTerm("");
   };
-  // TODO: Definir el tipo de transferencia
+
   const [transfers, setTransfers] = useState<Transfer[]>([]);
 
   const handleTransferSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -141,6 +131,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
       setTimeout(() => setSearchTerm(""), 5000);
     }
   };
+
   const [offset, setOffset] = useState(0);
   const [limitItems, _] = useState(5);
   const [hasMore, setHasMore] = useState(true);
@@ -369,7 +360,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
               {transfers?.map((transfer) => (
                 <tr key={transfer.transfer_id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {transfer.transfer_date.substring(0, 10)}
+                    {format(new Date(transfer.transfer_date), "dd/MM/yy HH:MM")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <ul className="list-disc pl-4">

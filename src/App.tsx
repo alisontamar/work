@@ -172,7 +172,6 @@ function App() {
       case 'sales':
         return (
           <Sales
-            onSubmit={handleSaleSubmit}
             exchangeRate={exchangeRate}
           />
         );
