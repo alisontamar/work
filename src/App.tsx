@@ -199,7 +199,6 @@ const filteredProducts = products.filter(product => {
       case 'sales':
         return (
           <Sales
-            onSubmit={handleSaleSubmit}
             exchangeRate={exchangeRate}
           />
         );
