@@ -32,54 +32,69 @@ interface SaleComplete {
   seller_last_name: string;
 }
 
-const products: Product[] = [
-  {
-    id_producto: "fb3c0fd3-0a82-47cf-b0f1-c09817439f09",
-    nombre_producto: "Laptop Lenovo ThinkPad",
-    color_prodcuto: "Negro",
-    precio_dolar: 1,
-    granancia_boliviano: 10,
-    stock_producto: 10,
-    fecha_hora_creacion_producto: new Date().toISOString(),
-    imagen_producto: "https://images.pexels.com/photos/18105/pexels-photo.jpg",
-    codigo_MEI1: "MEI123456",
-    codigo_MEI2: "MEI789012",
-    id_empleado: 1,
-  },
-  {
-    id_producto: "2546593a-5301-41d4-9a1f-2f99d441948e",
-    nombre_producto: "iPhone 13 Pro",
-    color_prodcuto: "Azul",
-    precio_dolar: 1,
-    granancia_boliviano: 10,
-    stock_producto: 15,
-    fecha_hora_creacion_producto: new Date().toISOString(),
-    imagen_producto:
-      "https://images.pexels.com/photos/404280/pexels-photo-404280.jpeg",
-    codigo_MEI1: "MEI345678",
-    codigo_MEI2: "MEI901234",
-    id_empleado: 1,
-  },
-];
+// const products: Product[] = [
+//   {
+//     id_producto: "fb3c0fd3-0a82-47cf-b0f1-c09817439f09",
+//     nombre_producto: "Laptop Lenovo ThinkPad",
+//     color_prodcuto: "Negro",
+//     precio_dolar: 1,
+//     granancia_boliviano: 10,
+//     stock_producto: 10,
+//     fecha_hora_creacion_producto: new Date().toISOString(),
+//     imagen_producto: "https://images.pexels.com/photos/18105/pexels-photo.jpg",
+//     codigo_MEI1: "MEI123456",
+//     codigo_MEI2: "MEI789012",
+//     id_empleado: 1,
+//   },
+//   {
+//     id_producto: "2546593a-5301-41d4-9a1f-2f99d441948e",
+//     nombre_producto: "iPhone 13 Pro",
+//     color_prodcuto: "Azul",
+//     precio_dolar: 1,
+//     granancia_boliviano: 10,
+//     stock_producto: 15,
+//     fecha_hora_creacion_producto: new Date().toISOString(),
+//     imagen_producto:
+//       "https://images.pexels.com/photos/404280/pexels-photo-404280.jpeg",
+//     codigo_MEI1: "MEI345678",
+//     codigo_MEI2: "MEI901234",
+//     id_empleado: 1,
+//   },
+// ];
 
 export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
 
-  const filteredProducts = searchTerm
-    ? products.filter(
-        (product) =>
-          product.codigo_MEI1
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          product.codigo_MEI2
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          product.nombre_producto
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
-      )
-    : [];
+  const get_products = async (barcode: string) => {
+    const { data: infoProducts, error } = await supabase
+      .from("products")
+      .select("id, name, cost_price, stock_quantity, image, color")
+      .eq("barcode", barcode);
+
+    if (error) {
+      toast.error("Error al obtener los productos", {
+        duration: 3000,
+        position: "top-right",
+      });
+      return [];
+    }
+    return infoProducts;
+  };
+  // const filteredProducts = searchTerm
+  //   ? products.filter(
+  //       (product) =>
+  //         product.codigo_MEI1
+  //           .toLowerCase()
+  //           .includes(searchTerm.toLowerCase()) ||
+  //         product.codigo_MEI2
+  //           .toLowerCase()
+  //           .includes(searchTerm.toLowerCase()) ||
+  //         product.nombre_producto
+  //           .toLowerCase()
+  //           .includes(searchTerm.toLowerCase())
+  //     )
+  //   : [];
 
   const [totalSale, setTotalSale] = useState<number>(0); // total de la venta
 
@@ -92,8 +107,8 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
     );
     setTotalSale(total);
   };
-
-  const handleProductSelect = (product: Product) => {
+  // Revisar el tipo de dato de los productos
+  const handleProductSelect = (product: any) => {
     if (!selectedProducts.find((p) => p.id_producto === product.id_producto)) {
       const updatedProducts = [...selectedProducts, product];
       setSelectedProducts(
@@ -107,7 +122,7 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
     setSearchTerm("");
   };
 
-  const removeProduct = (productId: number) => {
+  const removeProduct = (productId: string) => {
     const updated = selectedProducts.filter((p) => p.id_producto !== productId);
     setSelectedProducts(updated);
     calculateTotal(updated);
@@ -126,7 +141,6 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
       }
     );
     if (error) {
-      console.log(error.message);
       return toast.error("Error al registrar la venta", {
         duration: 3000,
         position: "top-right",
@@ -142,10 +156,10 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
   };
 
   const [isOpen, setIsOpen] = useState(false);
-  const [productIdDelete, setProductIdDelete] = useState<number>();
+  const [productIdDelete, setProductIdDelete] = useState<string>();
   const searchRef = React.useRef<HTMLInputElement>(null);
 
-  const handleDelete = (productID: number) => {
+  const handleDelete = (productID: string) => {
     setIsOpen(true);
     setProductIdDelete(productID);
   };
@@ -161,27 +175,32 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
       setTimeout(() => setSearchTerm(""), 5000);
     }
   };
-
+  
   useEffect(() => {
     if (searchTerm !== "") {
-      const scannedProduct = products.find(
-        (product) =>
-          product.codigo_MEI1.toLowerCase() === searchTerm.toLowerCase() ||
-          product.codigo_MEI2.toLowerCase() === searchTerm.toLowerCase()
-      );
+      const scannedProduct = get_products(searchTerm);
 
-      if (scannedProduct) {
-        if (
-          !selectedProducts.find(
-            (p) => p.id_producto === scannedProduct.id_producto
-          )
-        ) {
-          const newProducts = [...selectedProducts, scannedProduct];
-          setSelectedProducts(newProducts);
-          calculateTotal(newProducts);
+      scannedProduct.then((data) => {
+        if (data && data.length > 0) {
+          const productSelected = data[0];
+          const { id, name, color, cost_price, stock_quantity, image } =
+            productSelected;
+          handleProductSelect({
+            id_producto: id,
+            nombre_producto: name,
+            color_prodcuto: color,
+            precio_dolar: cost_price,
+            granancia_boliviano: stock_quantity,
+            stock_producto: stock_quantity,
+            imagen_producto: image
+          });
+        } else {
+          toast.error("Producto no encontrado", {
+            duration: 3000,
+            position: "top-right",
+          });
         }
-        setSearchTerm("");
-      }
+      });
     }
   }, [searchTerm]);
 
@@ -230,7 +249,7 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
                 value={searchTerm}
                 ref={searchRef}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por código MEI o nombre del producto..."
+                placeholder="Buscar por código de barras"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
               />
               <button
@@ -241,9 +260,9 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
                 Escanear Código
               </button>
             </div>
-            {searchTerm && filteredProducts.length > 0 && (
+            {searchTerm && selectedProducts.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                {filteredProducts.map((product) => (
+                {selectedProducts.map((product) => (
                   <button
                     key={product.id_producto}
                     onClick={() => handleProductSelect(product)}
@@ -257,7 +276,7 @@ export const Sales: React.FC<SalesProps> = ({ exchangeRate }) => {
                     <div>
                       <p className="font-medium">{product.nombre_producto}</p>
                       <p className="text-sm text-gray-600">
-                        MEI: {product.codigo_MEI1} / {product.codigo_MEI2}
+                        Código de Barras {product.codigo_MEI1}
                       </p>
                     </div>
                   </button>
