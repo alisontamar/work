@@ -13,6 +13,20 @@ interface TransferProps {
   employees: Employee[];
 }
 
+interface Product {
+  product_id: string;
+  product_name: string;
+}
+
+interface Transfer {
+  transfer_id: string;
+  transfer_date: string; // ISO 8601 format
+  store_origin: string;
+  store_destiny: string;
+  employee_name: string;
+  products: Product[];
+}
+
 export const TransferComponent: React.FC<TransferProps> = ({
   products,
   stores,
@@ -24,19 +38,7 @@ export const TransferComponent: React.FC<TransferProps> = ({
   const toStore = watch("to_store_id");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
-  interface Product {
-    product_id: string;
-    product_name: string;
-  }
 
-  interface Transfer {
-    transfer_id: string;
-    transfer_date: string; // ISO 8601 format
-    store_origin: string;
-    store_destiny: string;
-    employee_name: string;
-    products: Product[];
-  }
   const filteredProducts = searchTerm
     ? products.filter((product) => {
         const code1 = String(product.mei_code1).toLowerCase();
